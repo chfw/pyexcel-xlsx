@@ -96,8 +96,7 @@ class SlowSheet(FastSheet):
         """
         row, row_index = row_struct
         for column_index, cell in enumerate(row, 1):
-            letter = openpyxl.utils.get_column_letter(column_index)
-            if self.xlsx_sheet.column_dimensions[letter].hidden is False:
+            if not self._is_column_hidden(column_index):
                 if cell:
                     value = cell.value
                 else:
@@ -108,8 +107,23 @@ class SlowSheet(FastSheet):
                 yield value
         if self.max_column > self.__sheet_max_column:
             for i in range(self.__sheet_max_column, self.max_column):
-                value = self._merged_cells(row_index, i + 1, "")
-                yield value
+                if not self._is_column_hidden(i + 1):
+                    value = self._merged_cells(row_index, i + 1, "")
+                    yield value
+
+    def _is_column_hidden(self, column_index):
+        dimensions = self.xlsx_sheet.column_dimensions
+        letter = openpyxl.utils.get_column_letter(column_index)
+        dimension = dimensions.get(letter)
+        if dimension is not None:
+            return dimension.hidden
+        return any(
+            dimension.hidden
+            and dimension.min is not None
+            and dimension.max is not None
+            and dimension.min <= column_index <= dimension.max
+            for dimension in dimensions.values()
+        )
 
     def _merged_cells(self, row, column, value):
         ret = value
