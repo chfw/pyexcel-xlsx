@@ -62,8 +62,9 @@ class SlowSheet(FastSheet):
     This sheet will be slower because it does not use readonly sheet
     """
 
-    def __init__(self, sheet, **keywords):
+    def __init__(self, sheet, skip_hidden_row_and_column=True, **keywords):
         self.xlsx_sheet = sheet
+        self._skip_hidden_row_and_column = skip_hidden_row_and_column
         self._keywords = keywords
         self.__merged_cells = {}
         self.max_row = 0
@@ -83,7 +84,10 @@ class SlowSheet(FastSheet):
         skip hidden rows
         """
         for row_index, row in enumerate(self.xlsx_sheet.rows, 1):
-            if self.xlsx_sheet.row_dimensions[row_index].hidden is False:
+            if (
+                not self._skip_hidden_row_and_column
+                or self.xlsx_sheet.row_dimensions[row_index].hidden is False
+            ):
                 yield (row, row_index)
         if self.max_row > self.__sheet_max_row:
             for i in range(self.__sheet_max_row, self.max_row):
@@ -97,7 +101,10 @@ class SlowSheet(FastSheet):
         row, row_index = row_struct
         for column_index, cell in enumerate(row, 1):
             letter = openpyxl.utils.get_column_letter(column_index)
-            if self.xlsx_sheet.column_dimensions[letter].hidden is False:
+            if (
+                not self._skip_hidden_row_and_column
+                or self.xlsx_sheet.column_dimensions[letter].hidden is False
+            ):
                 if cell:
                     value = cell.value
                 else:
@@ -146,7 +153,11 @@ class XLSXBook(IReader):
     def read_sheet(self, sheet_index):
         native_sheet = self.content_array[sheet_index].payload
         if self.skip_hidden_row_and_column or self.detect_merged_cells:
-            sheet = SlowSheet(native_sheet, **self.keywords)
+            sheet = SlowSheet(
+                native_sheet,
+                skip_hidden_row_and_column=self.skip_hidden_row_and_column,
+                **self.keywords
+            )
         else:
             sheet = FastSheet(native_sheet, **self.keywords)
         return sheet
@@ -157,7 +168,7 @@ class XLSXBook(IReader):
 
     def _load_the_excel_file(self, file_alike_object):
         read_only_flag = True
-        if self.skip_hidden_row_and_column:
+        if self.skip_hidden_row_and_column or self.detect_merged_cells:
             read_only_flag = False
         data_only_flag = True
         if self.detect_merged_cells:

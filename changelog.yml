@@ -5,6 +5,9 @@ releases:
   - action: Updated
     details:
     - '`#56`: to add a csv file as sheet to a xlsx file'
+  - action: Fixed
+    details:
+    - '`#33`: detect merged cells while retaining hidden rows and columns when filtering is disabled'
   date: 10.05.2025
   version: 0.7.0
 - changes:
